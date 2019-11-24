@@ -6,6 +6,7 @@ import (
 	"os/signal"
 
 	"github.com/hashicorp/hcl/v2/hclsimple"
+	"github.com/rs/zerolog"
 	"gopkg.in/alecthomas/kingpin.v2"
 
 	"malta/internal"
@@ -22,21 +23,27 @@ func main() {
 
 	switch kingpin.MustParse(app.Parse(os.Args[1:])) {
 	case appServer.FullCommand():
+		logger := logger()
+
 		config, err := parseConfig(*appServerFlag)
-		handleError(err)
+		handleError(err, logger)
+		config.Logger = logger
 
 		doneChan := make(chan struct{})
 		config.Transport.HTTP.AsyncErrorHandler = func(err error) {
-			fmt.Println("async http error: %w", err)
+			logger.Err(err).Msg("async http error")
 			close(doneChan)
 		}
 
 		client := internal.Client{Config: config}
-		client.Init()
+		if err := client.Init(); err != nil {
+			err = fmt.Errorf("client initialization error: %w", err)
+			handleError(err, logger)
+		}
 		client.Start()
 		wait(doneChan)
 		err = client.Stop()
-		handleError(err)
+		handleError(err, logger)
 	}
 }
 
@@ -74,9 +81,14 @@ func wait(doneChan chan struct{}) {
 	}
 }
 
-func handleError(err error) {
+func logger() zerolog.Logger {
+	out := zerolog.NewConsoleWriter()
+	return zerolog.New(out).With().Caller().Timestamp().Logger()
+}
+
+func handleError(err error, logger zerolog.Logger) {
 	if err != nil {
-		fmt.Println(err.Error())
+		logger.Error().Msg(err.Error())
 		os.Exit(-1)
 	}
 }
