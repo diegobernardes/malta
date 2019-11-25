@@ -47,10 +47,11 @@ func (s *Server) Init() error {
 func (s *Server) Start() {
 	r := chi.NewRouter()
 	r.Get("/nodes", s.Config.Handler.Node.Index)
+	r.Post("/nodes", s.Config.Handler.Node.Create)
 	s.instance.Handler = r
 
 	go func() {
-		if err := s.instance.ListenAndServe(); err != nil {
+		if err := s.instance.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			err = fmt.Errorf("failed to start: %w", err)
 			s.Config.AsyncErrorHandler(err)
 		}

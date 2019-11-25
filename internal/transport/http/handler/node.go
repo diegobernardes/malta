@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -11,6 +12,7 @@ import (
 
 type nodeRepository interface {
 	Index(ctx context.Context) ([]service.Node, error)
+	Create(ctx context.Context, node service.Node) error
 }
 
 // Node is the HTTP logic around the node bussiness logic.
@@ -39,6 +41,22 @@ func (n *Node) Index(w http.ResponseWriter, r *http.Request) {
 	n.Writer.Response(w, nodes, http.StatusOK, nil)
 }
 
+// Create a node.
+func (n *Node) Create(w http.ResponseWriter, r *http.Request) {
+	var nn node
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&nn); err != nil {
+		n.Writer.Error(w, "failed parse request body", err, http.StatusInternalServerError)
+		return
+	}
+
+	if err := n.Repository.Create(r.Context(), nn.origin()); err != nil {
+		n.Writer.Error(w, "failed to create the the node", err, http.StatusInternalServerError)
+		return
+	}
+}
+
 type nodeList struct {
 	Nodes []node `json:"nodes"`
 }
@@ -48,6 +66,10 @@ type node struct {
 	Address  string            `json:"address"`
 	Port     uint              `json:"port"`
 	Metadata map[string]string `json:"metadata"`
+}
+
+func (n node) origin() service.Node {
+	return service.Node(n)
 }
 
 func toNodeList(nodes []service.Node) nodeList {
