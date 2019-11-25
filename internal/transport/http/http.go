@@ -16,7 +16,8 @@ type ServerConfig struct {
 	Address string
 	Port    uint
 	Handler struct {
-		Node handler.Node
+		Node    handler.Node
+		Invalid handler.Invalid
 	}
 	AsyncErrorHandler func(error)
 	Logger            zerolog.Logger
@@ -36,6 +37,7 @@ func (s *Server) Init() error {
 
 	writer := shared.Writer{Logger: s.Config.Handler.Node.Writer.Logger}
 	s.Config.Handler.Node.Writer = writer
+	s.Config.Handler.Invalid.Writer = writer
 
 	if err := s.Config.Handler.Node.Init(); err != nil {
 		return fmt.Errorf("node handler initialization error: %w", err)
@@ -48,6 +50,8 @@ func (s *Server) Start() {
 	r := chi.NewRouter()
 	r.Get("/nodes", s.Config.Handler.Node.Index)
 	r.Post("/nodes", s.Config.Handler.Node.Create)
+	r.NotFound(s.Config.Handler.Invalid.NotFound)
+	r.MethodNotAllowed(s.Config.Handler.Invalid.MethodNotAllowed)
 	s.instance.Handler = r
 
 	go func() {
