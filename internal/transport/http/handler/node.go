@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"malta/internal/service"
 	"malta/internal/transport/http/shared"
@@ -62,10 +63,11 @@ type nodeList struct {
 }
 
 type node struct {
-	ID       string            `json:"id"`
-	Address  string            `json:"address"`
-	Port     uint              `json:"port"`
-	Metadata map[string]string `json:"metadata"`
+	ID        int               `json:"id"`
+	Address   string            `json:"address"`
+	Port      uint              `json:"port"`
+	Metadata  map[string]string `json:"metadata"`
+	CreatedAt time.Time         `json:"createdAt"`
 }
 
 func (n node) origin() service.Node {
