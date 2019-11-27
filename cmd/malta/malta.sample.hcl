@@ -5,16 +5,11 @@ transport {
   }
 }
 
-external {
-  etcd {
-    embed                  = true
-    data                   = "/tmp/malta/etcd"
-    initialization-timeout = "10s"
-  }
-
-  etcd {
-    dial-timeout    = "2s"
-    request-timeout = "10s"
-    endpoints       = ["0.0.0.0:2379"]
+database {
+  sqlite3 {
+    file                 = "malta.sqlite3"
+    max-open-connections = 100
+    max-idle-connections = 100
+    connection-lifetime  = "2m"
   }
 }

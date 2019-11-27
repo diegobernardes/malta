@@ -11,6 +11,7 @@ import (
 	"gopkg.in/alecthomas/kingpin.v2"
 
 	"malta/internal"
+	"malta/internal/database/sqlite3"
 	"malta/internal/transport/http"
 )
 
@@ -60,59 +61,14 @@ type config struct {
 			Port    uint   `hcl:"port"`
 		} `hcl:"http,block"`
 	} `hcl:"transport,block"`
-	External struct {
-		Etcd []struct {
-			Embed                 bool     `hcl:"embed,optional"`
-			Data                  string   `hcl:"data,optional"`
-			InitializationTimeout string   `hcl:"initialization-timeout,optional"`
-			DialTimeout           string   `hcl:"dial-timeout,optional"`
-			RequestTimeout        string   `hcl:"request-timeout,optional"`
-			Endpoints             []string `hcl:"endpoints,optional"`
-		} `hcl:"etcd,block"`
-	} `hcl:"external,block"`
-}
-
-func parseConfig(path string, logger zerolog.Logger) (internal.ClientConfig, error) {
-	var cfg config
-	if err := hclsimple.DecodeFile(path, nil, &cfg); err != nil {
-		return internal.ClientConfig{}, fmt.Errorf("load config: %w", err)
-	}
-
-	return internal.ClientConfig{
-		Transport: internal.ClientConfigTransport{
-			HTTP: http.ServerConfig{
-				Address: cfg.Transport.HTTP.Address,
-				Port:    cfg.Transport.HTTP.Port,
-			},
-		},
-		External: internal.ClientConfigExternal{
-			Etcd: parseConfigEtcd(cfg, logger),
-		},
-	}, nil
-}
-
-func parseConfigEtcd(cfg config, logger zerolog.Logger) internal.ClientConfigExternalEtcd {
-	if len(cfg.External.Etcd) > 2 {
-		err := fmt.Errorf("invalid quantity of etcd block configuration")
-		handleError(err, logger)
-	}
-
-	var result internal.ClientConfigExternalEtcd
-	duration := parseTimeDuration(logger)
-	for _, etcd := range cfg.External.Etcd {
-		if etcd.Embed {
-			result.Embed.Enable = true
-			result.Embed.Data = etcd.Data
-			result.Embed.InitializationTimeout = duration(etcd.InitializationTimeout)
-		} else {
-			result.Client.Enable = true
-			result.Client.DialTimeout = duration(etcd.DialTimeout)
-			result.Client.RequestTimeout = duration(etcd.RequestTimeout)
-			result.Client.Endpoints = etcd.Endpoints
-		}
-	}
-
-	return result
+	Database struct {
+		SQLite3 struct {
+			File               string `hcl:"file,optional"`
+			MaxOpenConnections int    `hcl:"max-open-connections,optional"`
+			MaxIdleConnections int    `hcl:"max-idle-connections,optional"`
+			ConnectionLifetime string `hcl:"connection-lifetime,optional"`
+		} `hcl:"sqlite3,block"`
+	} `hcl:"database,block"`
 }
 
 func wait(doneChan chan struct{}) {
@@ -131,9 +87,33 @@ func logger() zerolog.Logger {
 
 func handleError(err error, logger zerolog.Logger) {
 	if err != nil {
-		logger.Error().Msg(err.Error())
-		os.Exit(-1)
+		logger.Fatal().Msg(err.Error())
 	}
+}
+
+func parseConfig(path string, logger zerolog.Logger) (internal.ClientConfig, error) {
+	var cfg config
+	if err := hclsimple.DecodeFile(path, nil, &cfg); err != nil {
+		return internal.ClientConfig{}, fmt.Errorf("load config: %w", err)
+	}
+
+	duration := parseTimeDuration(logger)
+	return internal.ClientConfig{
+		Transport: internal.ClientConfigTransport{
+			HTTP: http.ServerConfig{
+				Address: cfg.Transport.HTTP.Address,
+				Port:    cfg.Transport.HTTP.Port,
+			},
+		},
+		Database: internal.ClientConfigDatabase{
+			SQLite3: sqlite3.ClientConfig{
+				DatabaseFile:       cfg.Database.SQLite3.File,
+				MaxOpenConnections: cfg.Database.SQLite3.MaxOpenConnections,
+				MaxIdleConnections: cfg.Database.SQLite3.MaxIdleConnections,
+				ConnectionLifetime: duration(cfg.Database.SQLite3.ConnectionLifetime),
+			},
+		},
+	}, nil
 }
 
 func parseTimeDuration(logger zerolog.Logger) func(string) time.Duration {

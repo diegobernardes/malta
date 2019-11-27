@@ -1,9 +1,12 @@
 package service
 
+import "time"
+
 // Node representation.
 type Node struct {
-	ID       string
-	Address  string
-	Port     uint
-	Metadata map[string]string
+	ID        int
+	Address   string
+	Port      uint
+	Metadata  map[string]string
+	CreatedAt time.Time
 }
