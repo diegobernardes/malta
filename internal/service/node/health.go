@@ -82,6 +82,7 @@ func (h *Health) process() {
 			return
 		case <-time.After(h.Config.Interval):
 		}
+		h.Config.Logger.Debug().Msg("New health check cycle")
 
 		g, gctx := errgroup.WithContext(h.ctx)
 		ratelimit := make(chan struct{}, h.Config.Concurrency)
@@ -98,6 +99,7 @@ func (h *Health) check(ctx context.Context, rl <-chan struct{}, node service.Nod
 		defer func() { <-rl }()
 
 		address := fmt.Sprintf("%s/health", node.Address)
+		h.Config.Logger.Debug().Str("endpoint", address).Msg("Executing health check")
 		req, err := http.NewRequest(http.MethodGet, address, nil)
 		if err != nil {
 			h.Config.Logger.Error().Err(err).Msg("failed to create http request")

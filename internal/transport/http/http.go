@@ -8,6 +8,7 @@ import (
 	"github.com/rs/zerolog"
 
 	"malta/internal/transport/http/handler"
+	"malta/internal/transport/http/middleware"
 	"malta/internal/transport/http/shared"
 )
 
@@ -48,6 +49,7 @@ func (s *Server) Init() error {
 // Start the server.
 func (s *Server) Start() {
 	r := chi.NewRouter()
+	r.Use(middleware.Logger(s.Config.Logger))
 	r.Get("/nodes", s.Config.Handler.Node.Index)
 	r.Post("/nodes", s.Config.Handler.Node.Create)
 	r.NotFound(s.Config.Handler.Invalid.NotFound)
