@@ -75,25 +75,30 @@ func (n *Node) Select(ctx context.Context) ([]service.Node, error) {
 }
 
 // Insert a node.
-func (n *Node) Insert(tx *sql.Tx, rawNode service.Node) error {
+func (n *Node) Insert(tx *sql.Tx, rawNode service.Node) (int, error) {
 	node := nodeView(rawNode)
 	arguments, err := node.insertArguments()
 	if err != nil {
-		return fmt.Errorf("failed to generate the insert arguments: %w", err)
+		return 0, fmt.Errorf("failed to generate the insert arguments: %w", err)
 	}
 
 	result, err := tx.Exec(queryInsert, arguments...)
 	if err != nil {
-		return fmt.Errorf("failed to insert the node: %w", err)
+		return 0, fmt.Errorf("failed to insert the node: %w", err)
 	}
 	affectedRows, err := result.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("failed to check if the row was inserted: %w", err)
+		return 0, fmt.Errorf("failed to check if the row was inserted: %w", err)
 	}
 	if affectedRows != 1 {
-		return fmt.Errorf("expected one row to be affected but '%d' was", affectedRows)
+		return 0, fmt.Errorf("expected one row to be affected but '%d' was", affectedRows)
 	}
-	return nil
+
+	id, err := result.LastInsertId()
+	if err != nil {
+		return 0, fmt.Errorf("failed to fetch the insert id: %w", err)
+	}
+	return (int)(id), nil
 }
 
 func (n *Node) open() (err error) {

@@ -13,7 +13,7 @@ import (
 
 type nodeRepository interface {
 	Index(ctx context.Context) ([]service.Node, error)
-	Create(ctx context.Context, node service.Node) error
+	Create(ctx context.Context, node service.Node) (int, error)
 }
 
 // Node is the HTTP logic around the node business logic.
@@ -52,7 +52,7 @@ func (n *Node) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := n.Repository.Create(r.Context(), nn.origin()); err != nil {
+	if _, err := n.Repository.Create(r.Context(), nn.origin()); err != nil {
 		n.Writer.Error(w, "failed to create the the node", err, http.StatusInternalServerError)
 		return
 	}
@@ -65,7 +65,6 @@ type nodeList struct {
 type node struct {
 	ID        int               `json:"id"`
 	Address   string            `json:"address"`
-	Port      uint              `json:"port"`
 	Metadata  map[string]string `json:"metadata"`
 	CreatedAt time.Time         `json:"createdAt"`
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net/url"
 	"time"
 
 	"malta/internal/database"
@@ -13,7 +14,7 @@ import (
 // ClientRepository implements the node logic at the database layer.
 type ClientRepository interface {
 	Select(ctx context.Context) ([]service.Node, error)
-	Insert(tx *sql.Tx, rawNode service.Node) error
+	Insert(tx *sql.Tx, rawNode service.Node) (int, error)
 }
 
 // ClientNotification implements the node logic to notify whenever a node is created.
@@ -35,10 +36,14 @@ func (c *Client) Index(ctx context.Context) ([]service.Node, error) {
 }
 
 // Create a node.
-func (c *Client) Create(ctx context.Context, node service.Node) (err error) {
+func (c *Client) Create(ctx context.Context, node service.Node) (_ int, err error) {
+	if _, err := url.Parse(node.Address); err != nil {
+		return 0, fmt.Errorf("invalid address: %w", err)
+	}
+
 	tx, err := c.Transaction.Begin(ctx, false, sql.LevelDefault)
 	if err != nil {
-		return fmt.Errorf("failed to create the transaction: %w", err)
+		return 0, fmt.Errorf("failed to create the transaction: %w", err)
 	}
 	defer func() {
 		err = c.TransactionHandler(tx, err)
@@ -52,8 +57,10 @@ func (c *Client) Create(ctx context.Context, node service.Node) (err error) {
 		node.Metadata = make(map[string]string)
 	}
 	node.CreatedAt = time.Now().UTC()
-	if err := c.Repository.Insert(tx, node); err != nil {
-		return fmt.Errorf("failed to insert a new node: %w", err)
+
+	node.ID, err = c.Repository.Insert(tx, node)
+	if err != nil {
+		return 0, fmt.Errorf("failed to insert a new node: %w", err)
 	}
-	return nil
+	return node.ID, nil
 }
