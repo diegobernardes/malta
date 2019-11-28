@@ -98,7 +98,15 @@ func (h *Health) check(ctx context.Context, rl <-chan struct{}, node service.Nod
 		defer func() { <-rl }()
 
 		address := fmt.Sprintf("%s/health", node.Address)
-		resp, err := h.Config.HTTPClient.Get(address)
+		req, err := http.NewRequest(http.MethodGet, address, nil)
+		if err != nil {
+			h.Config.Logger.Error().Err(err).Msg("failed to create http request")
+			return nil
+		}
+		defer req.Body.Close() // nolint: errcheck
+		req = req.WithContext(ctx)
+
+		resp, err := h.Config.HTTPClient.Do(req)
 		if err != nil {
 			h.Config.Logger.Error().Err(err).Msgf("failed to check the health of node '%d'", node.ID)
 			return nil

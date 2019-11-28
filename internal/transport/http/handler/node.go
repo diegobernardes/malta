@@ -16,7 +16,7 @@ type nodeRepository interface {
 	Create(ctx context.Context, node service.Node) error
 }
 
-// Node is the HTTP logic around the node bussiness logic.
+// Node is the HTTP logic around the node business logic.
 type Node struct {
 	Repository nodeRepository
 	Writer     shared.Writer

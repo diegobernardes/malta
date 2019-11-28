@@ -24,8 +24,7 @@ func main() {
 		Default("malta.hcl").
 		String()
 
-	switch kingpin.MustParse(app.Parse(os.Args[1:])) {
-	case appServer.FullCommand():
+	if kingpin.MustParse(app.Parse(os.Args[1:])) == appServer.FullCommand() {
 		logger := logger()
 
 		config, err := parseConfig(*appServerFlag, logger)
