@@ -96,6 +96,8 @@ func (c *Client) Init() error {
 
 // Start the application.
 func (c *Client) Start() error {
+	c.Config.Logger.Info().Msg("Starting application")
+
 	if err := c.database.sqlite3.client.Start(); err != nil {
 		return fmt.Errorf("failed to start sqlite3 database: %w", err)
 	}
@@ -104,9 +106,8 @@ func (c *Client) Start() error {
 		return fmt.Errorf("failed to start the node health service: %w", err)
 	}
 
-	c.Config.Logger.Info().Msg("Starting application")
 	c.transport.http.Start()
-
+	c.Config.Logger.Info().Msg("Application started")
 	return nil
 }
 
@@ -126,6 +127,7 @@ func (c *Client) Stop() error {
 
 	switch len(errs) {
 	case 0:
+		c.Config.Logger.Info().Msg("Application stopped")
 		return nil
 	case 1:
 		return errs[0]
