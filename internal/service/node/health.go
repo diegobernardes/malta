@@ -103,7 +103,6 @@ func (h *Health) check(ctx context.Context, rl <-chan struct{}, node service.Nod
 			h.Config.Logger.Error().Err(err).Msg("failed to create http request")
 			return nil
 		}
-		defer req.Body.Close() // nolint: errcheck
 		req = req.WithContext(ctx)
 
 		resp, err := h.Config.HTTPClient.Do(req)
