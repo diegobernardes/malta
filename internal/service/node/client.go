@@ -21,7 +21,7 @@ type ClientNotification interface {
 	Add(node service.Node)
 }
 
-// Client implements the node bussiness logic.
+// Client implements the node business logic.
 type Client struct {
 	Repository         ClientRepository
 	Notification       ClientNotification

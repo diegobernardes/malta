@@ -1,0 +1,72 @@
+[linters]
+disable-all = true
+enable      = [
+  'bodyclose',
+  'deadcode',
+  'errcheck',
+  'gochecknoglobals',
+  'gochecknoinits',
+  'goconst',
+  'gocritic',
+  'gosimple',
+  'govet',
+  'ineffassign',
+  'staticcheck',
+  'structcheck',
+  'typecheck',
+  'unused',
+  'varcheck',
+  'bodyclose',
+  'dupl',
+  'gochecknoglobals',
+  'gochecknoinits',
+  'goconst',
+  'gocritic',
+  'gocyclo',
+  'gofmt',
+  'goimports',
+  'golint',
+  'gosec',
+  'interfacer',
+  'lll',
+  'maligned',
+  'misspell',
+  'nakedret',
+  'prealloc',
+  'scopelint',
+  'stylecheck',
+  'unconvert',
+  'unparam',
+  'misspell'
+]
+
+  [linter-settings.goimports]
+  local-prefixes = 'malta'
+
+  [linter-settings.errcheck]
+  check-type-assertions = true
+  check-blank           = true
+
+  [linter-settings.unused]
+  check-exported = true
+
+  [linter-settings.unparam]
+  check-exported = true
+
+  [linter-settings.prealloc]
+  for-loops = true
+
+  [linter-settings.gocritic]
+  enabled-tags = [
+    'diagnostic',
+    'style',
+    'performance',
+    'experimental',
+    'opinionated'
+  ]
+
+[issues]
+exclude = [
+  'not declared by package utf8',
+  'unicode/utf8/utf8.go'
+]
