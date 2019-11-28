@@ -11,6 +11,7 @@ require (
 	github.com/hashicorp/hcl/v2 v2.1.0
 	github.com/mattn/go-sqlite3 v1.13.0
 	github.com/rs/zerolog v1.17.2
+	golang.org/x/sync v0.0.0-20190423024810-112230192c58
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	gopkg.in/yaml.v2 v2.2.3 // indirect
 )

@@ -12,6 +12,7 @@ import (
 
 	"malta/internal"
 	"malta/internal/database/sqlite3"
+	"malta/internal/service/node"
 	"malta/internal/transport/http"
 )
 
@@ -61,6 +62,14 @@ type config struct {
 			Port    uint   `hcl:"port"`
 		} `hcl:"http,block"`
 	} `hcl:"transport,block"`
+	Service struct {
+		Node struct {
+			Health struct {
+				Concurrency int    `hcl:"concurrency"`
+				Interval    string `hcl:"interval"`
+			} `hcl:"health,block"`
+		} `hcl:"node,block"`
+	} `hcl:"service,block"`
 	Database struct {
 		SQLite3 struct {
 			File               string `hcl:"file,optional"`
@@ -103,6 +112,14 @@ func parseConfig(path string, logger zerolog.Logger) (internal.ClientConfig, err
 			HTTP: http.ServerConfig{
 				Address: cfg.Transport.HTTP.Address,
 				Port:    cfg.Transport.HTTP.Port,
+			},
+		},
+		Service: internal.ClientConfigService{
+			Node: internal.ClientConfigServiceNode{
+				Health: node.HealthConfig{
+					Interval:    duration(cfg.Service.Node.Health.Interval),
+					Concurrency: cfg.Service.Node.Health.Concurrency,
+				},
 			},
 		},
 		Database: internal.ClientConfigDatabase{

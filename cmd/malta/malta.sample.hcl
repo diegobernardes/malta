@@ -5,6 +5,15 @@ transport {
   }
 }
 
+service {
+  node {
+    health {
+      concurrency = 10
+      interval    = "10s"
+    }
+  }
+}
+
 database {
   sqlite3 {
     file                 = "malta.sqlite3"
