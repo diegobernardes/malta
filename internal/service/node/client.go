@@ -16,9 +16,15 @@ type ClientRepository interface {
 	Insert(tx *sql.Tx, rawNode service.Node) error
 }
 
+// ClientNotification implements the node logic to notify whenever a node is created.
+type ClientNotification interface {
+	Add(node service.Node)
+}
+
 // Client implements the node bussiness logic.
 type Client struct {
 	Repository         ClientRepository
+	Notification       ClientNotification
 	Transaction        database.Transaction
 	TransactionHandler func(*sql.Tx, error) error
 }
@@ -34,7 +40,13 @@ func (c *Client) Create(ctx context.Context, node service.Node) (err error) {
 	if err != nil {
 		return fmt.Errorf("failed to create the transaction: %w", err)
 	}
-	defer func() { err = c.TransactionHandler(tx, err) }()
+	defer func() {
+		err = c.TransactionHandler(tx, err)
+		if err != nil {
+			return
+		}
+		c.Notification.Add(node)
+	}()
 
 	if node.Metadata == nil {
 		node.Metadata = make(map[string]string)
