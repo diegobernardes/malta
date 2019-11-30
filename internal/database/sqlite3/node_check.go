@@ -47,16 +47,8 @@ func (c *NodeCheck) Increment(ctx context.Context, id int) (int, error) {
 
 // Update the node counter with the given value.
 func (c *NodeCheck) Update(ctx context.Context, id, value int) error {
-	result, err := c.stmtUpdate.ExecContext(ctx, value, id)
-	if err != nil {
+	if _, err := c.stmtUpdate.ExecContext(ctx, value, id); err != nil {
 		return fmt.Errorf("failed to update: %w", err)
-	}
-	affectedRows, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to check if the row was updated: %w", err)
-	}
-	if affectedRows != 1 {
-		return fmt.Errorf("expected one row to be affected but '%d' was", affectedRows)
 	}
 	return nil
 }
