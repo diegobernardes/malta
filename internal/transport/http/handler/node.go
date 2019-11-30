@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"time"
 
 	"malta/internal/service"
 	"malta/internal/transport/http/shared"
@@ -13,7 +12,7 @@ import (
 
 type nodeRepository interface {
 	Index(ctx context.Context) ([]service.Node, error)
-	Create(ctx context.Context, node service.Node) (int, error)
+	Create(ctx context.Context, node service.Node) (service.Node, error)
 }
 
 // Node is the HTTP logic around the node business logic.
@@ -38,48 +37,22 @@ func (n *Node) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	nodes := toNodeList(rawNodes)
+	nodes := toNodeViewList(rawNodes)
 	n.Writer.Response(w, nodes, http.StatusOK, nil)
 }
 
 // Create a node.
 func (n *Node) Create(w http.ResponseWriter, r *http.Request) {
-	var nn node
+	var nv nodeViewCreate
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&nn); err != nil {
+	if err := decoder.Decode(&nv); err != nil {
 		n.Writer.Error(w, "failed parse request body", err, http.StatusInternalServerError)
 		return
 	}
 
-	if _, err := n.Repository.Create(r.Context(), nn.origin()); err != nil {
+	if _, err := n.Repository.Create(r.Context(), toNode(nv)); err != nil {
 		n.Writer.Error(w, "failed to create the the node", err, http.StatusInternalServerError)
 		return
 	}
-}
-
-type nodeList struct {
-	Nodes []node `json:"nodes"`
-}
-
-type node struct {
-	ID        int               `json:"id"`
-	Address   string            `json:"address"`
-	Metadata  map[string]string `json:"metadata"`
-	CreatedAt time.Time         `json:"createdAt"`
-}
-
-func (n node) origin() service.Node {
-	return service.Node(n)
-}
-
-func toNodeList(nodes []service.Node) nodeList {
-	if len(nodes) == 0 {
-		return nodeList{Nodes: make([]node, 0)}
-	}
-	result := nodeList{Nodes: make([]node, len(nodes))}
-	for i, n := range nodes {
-		result.Nodes[i] = node(n)
-	}
-	return result
 }
