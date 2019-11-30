@@ -63,9 +63,13 @@ type config struct {
 	} `hcl:"transport,block"`
 	Service struct {
 		Node struct {
+			Client struct {
+				TTL string `hcl:"ttl"`
+			} `hcl:"client,block"`
 			Health struct {
 				Concurrency int    `hcl:"concurrency"`
 				Interval    string `hcl:"interval"`
+				MaxFailures int    `hcl:"maxFailures"`
 			} `hcl:"health,block"`
 		} `hcl:"node,block"`
 	} `hcl:"service,block"`
@@ -115,9 +119,13 @@ func parseConfig(path string, logger zerolog.Logger) (internal.ClientConfig, err
 		},
 		Service: internal.ClientConfigService{
 			Node: internal.ClientConfigServiceNode{
+				Client: node.ClientConfig{
+					TTL: duration(cfg.Service.Node.Client.TTL),
+				},
 				Health: node.HealthConfig{
 					Interval:    duration(cfg.Service.Node.Health.Interval),
 					Concurrency: cfg.Service.Node.Health.Concurrency,
+					MaxFailures: cfg.Service.Node.Health.MaxFailures,
 				},
 			},
 		},

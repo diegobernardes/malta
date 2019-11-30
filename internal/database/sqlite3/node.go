@@ -11,26 +11,16 @@ import (
 
 const (
 	queryInsert = `
-		INSERT INTO node (address, metadata, created_at) VALUES (?, ?, ?)
+		INSERT INTO node (address, metadata, ttl, active, created_at) VALUES (?, ?, ?, ?, ?)
 	`
 )
-
-// nodeView represents the view of a node to the database layer.
-type nodeView service.Node
-
-func (n nodeView) insertArguments() ([]interface{}, error) {
-	metadata, err := json.Marshal(n.Metadata)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal the node metadata: %w", err)
-	}
-	return []interface{}{n.Address, metadata, n.CreatedAt}, nil
-}
 
 // Node has the business logic around the database layer.
 type Node struct {
 	Client *Client
 
 	stmtSelect *sql.Stmt
+	stmtUpdate *sql.Stmt
 }
 
 // Init internal state.
@@ -55,7 +45,7 @@ func (n *Node) Select(ctx context.Context) ([]service.Node, error) {
 			node     service.Node
 			metadata []byte
 		)
-		err := rows.Scan(&node.ID, &node.Address, &metadata, &node.CreatedAt)
+		err := rows.Scan(&node.ID, &node.Address, &metadata, &node.TTL, &node.Active, &node.CreatedAt)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse the rows: %w", err)
 		}
@@ -75,38 +65,69 @@ func (n *Node) Select(ctx context.Context) ([]service.Node, error) {
 }
 
 // Insert a node.
-func (n *Node) Insert(tx *sql.Tx, rawNode service.Node) (int, error) {
-	node := nodeView(rawNode)
-	arguments, err := node.insertArguments()
+func (n *Node) Insert(tx *sql.Tx, node service.Node) (service.Node, error) {
+	arguments, err := nodeInsertArguments(node)
 	if err != nil {
-		return 0, fmt.Errorf("failed to generate the insert arguments: %w", err)
+		return service.Node{}, fmt.Errorf("failed to generate the insert arguments: %w", err)
 	}
 
 	result, err := tx.Exec(queryInsert, arguments...)
 	if err != nil {
-		return 0, fmt.Errorf("failed to insert the node: %w", err)
+		return service.Node{}, fmt.Errorf("failed to insert the node: %w", err)
 	}
 	affectedRows, err := result.RowsAffected()
 	if err != nil {
-		return 0, fmt.Errorf("failed to check if the row was inserted: %w", err)
+		return service.Node{}, fmt.Errorf("failed to check if the row was inserted: %w", err)
 	}
 	if affectedRows != 1 {
-		return 0, fmt.Errorf("expected one row to be affected but '%d' was", affectedRows)
+		return service.Node{}, fmt.Errorf("expected one row to be affected but '%d' was", affectedRows)
 	}
 
 	id, err := result.LastInsertId()
 	if err != nil {
-		return 0, fmt.Errorf("failed to fetch the insert id: %w", err)
+		return service.Node{}, fmt.Errorf("failed to fetch the insert id: %w", err)
 	}
-	return (int)(id), nil
+	node.ID = (int)(id)
+	return node, nil
+}
+
+// Update a given node.
+func (n *Node) Update(ctx context.Context, node service.Node) error {
+	arguments, err := nodeInsertArguments(node)
+	if err != nil {
+		return fmt.Errorf("failed to generate the insert arguments: %w", err)
+	}
+	arguments = append(arguments, node.ID)
+
+	result, err := n.stmtUpdate.ExecContext(ctx, arguments...)
+	if err != nil {
+		return fmt.Errorf("failed to update: %w", err)
+	}
+	affectedRows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to check if the row was updated: %w", err)
+	}
+	if affectedRows != 1 {
+		return fmt.Errorf("expected one row to be affected but '%d' was", affectedRows)
+	}
+	return nil
 }
 
 func (n *Node) open() (err error) {
-	querySelect := "SELECT id, address, metadata, created_at FROM node"
+	querySelect := "SELECT id, address, metadata, ttl, active, created_at FROM node"
 	n.stmtSelect, err = n.Client.instance.Prepare(querySelect)
 	if err != nil {
 		return fmt.Errorf("failed to create the select prepared statement: %w", err)
 	}
+
+	queryUpdate := `UPDATE node
+									   SET address = ?, metadata = ?, ttl = ?, active = ?, created_at = ?
+									 WHERE id = ?`
+	n.stmtUpdate, err = n.Client.instance.Prepare(queryUpdate)
+	if err != nil {
+		return fmt.Errorf("failed to create the update prepared statement: %w", err)
+	}
+
 	return nil
 }
 
@@ -114,5 +135,17 @@ func (n *Node) close() (err error) {
 	if err := n.stmtSelect.Close(); err != nil {
 		return fmt.Errorf("failed to close the select prepared statement: %w", err)
 	}
+
+	if err := n.stmtUpdate.Close(); err != nil {
+		return fmt.Errorf("failed to close the update prepared statement: %w", err)
+	}
 	return nil
+}
+
+func nodeInsertArguments(n service.Node) ([]interface{}, error) {
+	metadata, err := json.Marshal(n.Metadata)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal the node metadata: %w", err)
+	}
+	return []interface{}{n.Address, metadata, n.TTL.Nanoseconds(), n.Active, n.CreatedAt}, nil
 }

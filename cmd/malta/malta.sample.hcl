@@ -7,9 +7,14 @@ transport {
 
 service {
   node {
+    client {
+      ttl = "20s"
+    }
+
     health {
       concurrency = 10
       interval    = "10s"
+      maxFailures = 6
     }
   }
 }

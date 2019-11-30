@@ -7,5 +7,7 @@ type Node struct {
 	ID        int
 	Address   string
 	Metadata  map[string]string
+	TTL       time.Duration
+	Active    bool
 	CreatedAt time.Time
 }

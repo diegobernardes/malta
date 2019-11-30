@@ -25,6 +25,7 @@ type ClientConfigTransport struct {
 
 // ClientConfigServiceNode used to configure the internal node service state.
 type ClientConfigServiceNode struct {
+	Client node.ClientConfig
 	Health node.HealthConfig
 }
 
@@ -56,8 +57,9 @@ type Client struct {
 
 	database struct {
 		sqlite3 struct {
-			client sqlite3.Client
-			node   sqlite3.Node
+			client    sqlite3.Client
+			node      sqlite3.Node
+			nodeCheck sqlite3.NodeCheck
 		}
 	}
 }
@@ -65,21 +67,25 @@ type Client struct {
 // Init internal state.
 func (c *Client) Init() error {
 	c.database.sqlite3.node.Client = &c.database.sqlite3.client
+	c.database.sqlite3.nodeCheck.Client = &c.database.sqlite3.client
 	c.database.sqlite3.client.Config = c.Config.Database.SQLite3
 	c.database.sqlite3.client.Config.ClientLifecycleHook = append(
 		c.database.sqlite3.client.Config.ClientLifecycleHook,
 		&c.database.sqlite3.node,
+		&c.database.sqlite3.nodeCheck,
 	)
 	if err := c.database.sqlite3.client.Init(); err != nil {
 		return fmt.Errorf("failed to initialize sqlite3 client: %w", err)
 	}
 
+	c.service.node.Config = c.Config.Service.Node.Client
 	c.service.node.Notification = &c.service.nodeHealth
 	c.service.node.Repository = &c.database.sqlite3.node
 	c.service.node.Transaction = &c.database.sqlite3.client
 	c.service.node.TransactionHandler = database.TransactionHandler(c.Config.Logger)
 
 	c.service.nodeHealth.Config = c.Config.Service.Node.Health
+	c.service.nodeHealth.Config.CheckRepository = &c.database.sqlite3.nodeCheck
 	c.service.nodeHealth.Config.Repository = &c.database.sqlite3.node
 	c.service.nodeHealth.Config.Logger = c.Config.Logger
 	c.service.nodeHealth.Config.HTTPClient = http.DefaultClient
