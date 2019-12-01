@@ -66,15 +66,16 @@ func (n *Node) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	node, err := n.Repository.Create(r.Context(), toNode(nv))
+	rawNode, err := n.Repository.Create(r.Context(), toNode(nv))
 	if err != nil {
 		n.Writer.Error(w, "failed to create the the node", err, http.StatusInternalServerError)
 		return
 	}
+	node := toNodeView(rawNode)
 
 	headers := http.Header{
 		"Location": []string{
-			n.ResourceAddress(node),
+			n.ResourceAddress(rawNode),
 		},
 	}
 	n.Writer.Response(w, node, http.StatusCreated, headers)
