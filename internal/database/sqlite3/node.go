@@ -19,8 +19,9 @@ const (
 type Node struct {
 	Client *Client
 
-	stmtSelect *sql.Stmt
-	stmtUpdate *sql.Stmt
+	stmtSelect    *sql.Stmt
+	stmtSelectOne *sql.Stmt
+	stmtUpdate    *sql.Stmt
 }
 
 // Init internal state.
@@ -62,6 +63,26 @@ func (n *Node) Select(ctx context.Context) ([]service.Node, error) {
 		return nil, fmt.Errorf("failed to process the rows: %w", err)
 	}
 	return nodes, nil
+}
+
+// SelectOne is used to get a single node.
+func (n *Node) SelectOne(ctx context.Context, id string) (service.Node, error) {
+	var (
+		node     service.Node
+		metadata []byte
+		row      = n.stmtSelectOne.QueryRowContext(ctx, id)
+	)
+	err := row.Scan(&node.ID, &node.Address, &metadata, &node.TTL, &node.Active, &node.CreatedAt)
+	if err != nil {
+		return service.Node{}, fmt.Errorf("failed to parse the rows: %w", err)
+	}
+
+	if len(metadata) > 0 {
+		if err := json.Unmarshal(metadata, &node.Metadata); err != nil {
+			return service.Node{}, fmt.Errorf("failed to unmarshal metadata: %w", err)
+		}
+	}
+	return node, nil
 }
 
 // Insert a node.
@@ -120,6 +141,12 @@ func (n *Node) open() (err error) {
 		return fmt.Errorf("failed to create the select prepared statement: %w", err)
 	}
 
+	querySelectOne := "SELECT id, address, metadata, ttl, active, created_at FROM node WHERE id = ?"
+	n.stmtSelectOne, err = n.Client.instance.Prepare(querySelectOne)
+	if err != nil {
+		return fmt.Errorf("failed to create the select one prepared statement: %w", err)
+	}
+
 	queryUpdate := `UPDATE node
 									   SET address = ?, metadata = ?, ttl = ?, active = ?, created_at = ?
 									 WHERE id = ?`
@@ -134,6 +161,10 @@ func (n *Node) open() (err error) {
 func (n *Node) close() (err error) {
 	if err := n.stmtSelect.Close(); err != nil {
 		return fmt.Errorf("failed to close the select prepared statement: %w", err)
+	}
+
+	if err := n.stmtSelectOne.Close(); err != nil {
+		return fmt.Errorf("failed to close the select one prepared statement: %w", err)
 	}
 
 	if err := n.stmtUpdate.Close(); err != nil {

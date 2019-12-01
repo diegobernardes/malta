@@ -51,6 +51,7 @@ func (s *Server) Start() {
 	r := chi.NewRouter()
 	r.Use(middleware.Logger(s.Config.Logger))
 	r.Get("/nodes", s.Config.Handler.Node.Index)
+	r.Get("/nodes/{id}", s.Config.Handler.Node.Show)
 	r.Post("/nodes", s.Config.Handler.Node.Create)
 	r.NotFound(s.Config.Handler.Invalid.NotFound)
 	r.MethodNotAllowed(s.Config.Handler.Invalid.MethodNotAllowed)
