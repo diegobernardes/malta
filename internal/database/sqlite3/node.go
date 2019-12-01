@@ -135,7 +135,10 @@ func (n *Node) Update(ctx context.Context, node service.Node) error {
 }
 
 func (n *Node) open() (err error) {
-	querySelect := "SELECT id, address, metadata, ttl, active, created_at FROM node"
+	querySelect := `SELECT id, address, metadata, ttl, active, created_at
+										FROM node
+									 WHERE active = true
+								ORDER BY created_at`
 	n.stmtSelect, err = n.Client.instance.Prepare(querySelect)
 	if err != nil {
 		return fmt.Errorf("failed to create the select prepared statement: %w", err)
