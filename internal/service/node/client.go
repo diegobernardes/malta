@@ -14,6 +14,7 @@ import (
 // ClientRepository implements the node logic at the database layer.
 type ClientRepository interface {
 	Select(ctx context.Context) ([]service.Node, error)
+	SelectOne(ctx context.Context, id string) (service.Node, error)
 	Insert(tx *sql.Tx, rawNode service.Node) (service.Node, error)
 }
 
@@ -39,6 +40,11 @@ type Client struct {
 // Index list the nodes.
 func (c *Client) Index(ctx context.Context) ([]service.Node, error) {
 	return c.Repository.Select(ctx)
+}
+
+// FindOne fetch a given node.
+func (c *Client) FindOne(ctx context.Context, id string) (service.Node, error) {
+	return c.Repository.SelectOne(ctx, id)
 }
 
 // Create a node.

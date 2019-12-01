@@ -5,10 +5,12 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/go-chi/chi"
 	"github.com/rs/zerolog"
 
 	"malta/internal/database"
 	"malta/internal/database/sqlite3"
+	"malta/internal/service"
 	"malta/internal/service/node"
 	transportHTTP "malta/internal/transport/http"
 )
@@ -92,6 +94,17 @@ func (c *Client) Init() error {
 
 	c.transport.http = transportHTTP.Server{Config: c.Config.Transport.HTTP}
 	c.transport.http.Config.Handler.Node.Repository = &c.service.node
+	c.transport.http.Config.Handler.Node.ResourceAddress = func(node service.Node) string {
+		return fmt.Sprintf(
+			"http://%s:%d/nodes/%d",
+			c.transport.http.Config.Address,
+			c.transport.http.Config.Port,
+			node.ID,
+		)
+	}
+	c.transport.http.Config.Handler.Node.ResourceID = func(r *http.Request) string {
+		return chi.URLParam(r, "id")
+	}
 	c.transport.http.Config.Logger = c.Config.Logger
 	if err := c.transport.http.Init(); err != nil {
 		return fmt.Errorf("http transport initialization error: %w", err)

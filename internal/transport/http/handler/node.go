@@ -12,13 +12,16 @@ import (
 
 type nodeRepository interface {
 	Index(ctx context.Context) ([]service.Node, error)
+	FindOne(ctx context.Context, id string) (service.Node, error)
 	Create(ctx context.Context, node service.Node) (service.Node, error)
 }
 
 // Node is the HTTP logic around the node business logic.
 type Node struct {
-	Repository nodeRepository
-	Writer     shared.Writer
+	Repository      nodeRepository
+	Writer          shared.Writer
+	ResourceAddress func(service.Node) string
+	ResourceID      func(*http.Request) string
 }
 
 // Init internal state.
@@ -41,6 +44,18 @@ func (n *Node) Index(w http.ResponseWriter, r *http.Request) {
 	n.Writer.Response(w, nodes, http.StatusOK, nil)
 }
 
+// Show is used to show a single node.
+func (n *Node) Show(w http.ResponseWriter, r *http.Request) {
+	rawNode, err := n.Repository.FindOne(r.Context(), n.ResourceID(r))
+	if err != nil {
+		n.Writer.Error(w, "failed to fetch the node", err, http.StatusInternalServerError)
+		return
+	}
+
+	node := toNodeView(rawNode)
+	n.Writer.Response(w, node, http.StatusOK, nil)
+}
+
 // Create a node.
 func (n *Node) Create(w http.ResponseWriter, r *http.Request) {
 	var nv nodeViewCreate
@@ -51,8 +66,16 @@ func (n *Node) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := n.Repository.Create(r.Context(), toNode(nv)); err != nil {
+	node, err := n.Repository.Create(r.Context(), toNode(nv))
+	if err != nil {
 		n.Writer.Error(w, "failed to create the the node", err, http.StatusInternalServerError)
 		return
 	}
+
+	headers := http.Header{
+		"Location": []string{
+			n.ResourceAddress(node),
+		},
+	}
+	n.Writer.Response(w, node, http.StatusCreated, headers)
 }
